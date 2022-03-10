@@ -1,5 +1,9 @@
 {
     "files.associations": {
-        "arg_hook.h": "c"
+        "arg_hook.h": "c",
+        "*.inc": "c",
+        "Wtype-limits-no.C": "cpp",
+        "*.tcc": "c",
+        "system.h": "c"
     }
 }
