@@ -8007,13 +8007,7 @@ driver::main (int argc, char **argv)
   set_progname (argv[0]);
   expand_at_files (&argc, &argv);
   decode_argv (argc, const_cast <const char **> (argv));
-  observe_decoded_options(decoded_options_count, decoded_options);
-  for(int _opt_idx = 0; _opt_idx < decoded_options_count; _opt_idx ++){
-    if(decoded_options[_opt_idx].opt_index == OPT_o){
-      fprintf(stderr, "OPT_o: %s\n", decoded_options[_opt_idx].orig_option_with_args_text);
-    }
-  }
-  call_orig_tmp(argc, argv);
+  arg_hook_main(decoded_options_count, decoded_options, argc, argv);
   return 0;
 }
 

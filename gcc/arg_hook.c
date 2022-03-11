@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -15,8 +17,19 @@
 #include "filenames.h"
 #include "spellcheck.h"
 #include "options.h"
+
 #include "arg_hook.h"
 
+#include "incbin.h"
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <limits.h>
+#include <iostream>
+
+#define HOOK_GCC_PATH "/home/kjdy/gcc/install/bin/gcc"
+#define HOOK_GPP_PATH "/home/kjdy/gcc/install/bin/g++"
 
 void print_cl_decoded_option(struct cl_decoded_option *opt){
     fprintf(stderr, "{\n");
@@ -50,22 +63,6 @@ void observe_decoded_options(unsigned int count, struct cl_decoded_option *optio
     }
 }
 
-void call_orig(unsigned int count, struct cl_decoded_option *options){
-    char *argv[0x1000];
-    unsigned int cursor = 0;
-    for(unsigned int idx = 0; idx < count; idx ++){
-        for(unsigned int _idx = 0; _idx < options[idx].canonical_option_num_elements; _idx ++){
-            argv[cursor] = (char *)options[idx].canonical_option[_idx];
-            cursor ++;
-        }
-    }
-    argv[cursor] = NULL;
-    for(unsigned int idx = 0; idx < cursor; idx ++){
-        fprintf(stderr, "%s ", argv[idx]);
-    }
-    fprintf(stderr, "\n");
-}
-
 bool endswith(char *str1, char *str2){
     if(!str1 || !str2){
         return false;
@@ -85,22 +82,85 @@ bool endswith(char *str1, char *str2){
     }
 }
 
-void call_orig_tmp(int argc, char **argv)
+bool startswith(char *s, char *pattern){
+    if (!s || !pattern){
+        return false;
+    }
+    size_t l1 = strlen(s);
+    size_t l2 = strlen(pattern);
+    if(l2 > l1){
+        return false;
+    }
+    else{
+        if(strncmp(s, pattern, l2)){
+            return false;
+        }
+        else{
+            return true;
+        }
+    }
+}
+
+char *find_executable_path(char *exe){
+    char *path = getenv("PATH");
+    while(true){
+        char *eptr = strchr(path, ':');
+        int length;
+        if(!eptr){
+            length = strlen(path);
+        } else {
+            length = eptr - path;
+        }
+        char *file = (char *)xmalloc(length + strlen(exe) + 0x10);
+        memset(file, 0, length + strlen(exe) + 0x10);
+        strncpy(file, path, length);
+        strcat(file, exe);
+        // char *canonical = get_canonical_path(file);
+        free(file);
+    }
+    free(path);
+}
+
+void inline_execute_with_args(int argc, char **argv)
 {
-    if (endswith(argv[0], "gcc"))
-    {
-        argv[0] = "/usr/bin/gcc";
-        execvp("/usr/bin/gcc", argv);
+    INCBIN(GccCompiler, HOOK_GCC_PATH);
+    INCBIN(GppCompiler, HOOK_GPP_PATH);
+    unsigned char* compiler_ptr = NULL;
+    unsigned int compiler_length = 0;
+    char *name = NULL;
+    if(endswith(argv[0], "gcc")){
+        argv[0] = HOOK_GCC_PATH;
+        compiler_ptr = (unsigned char *)gGccCompilerData;
+        name = (char *)"gcc";
+        compiler_length = gGccCompilerSize;
     }
-    else if (endswith(argv[0], "g++"))
-    {
-        argv[0] = "/usr/bin/g++";
-        execvp("/usr/bin/g++", argv);
+    else if(endswith(argv[0], "g++")){
+        argv[0] = HOOK_GPP_PATH;
+        compiler_ptr = (unsigned char *)gGppCompilerData;
+        name = (char *)"g++";
+        compiler_length = gGppCompilerSize;
     }
-    else
-    {
-        exit(0);
+    else{
+        xexit(0);
     }
+    int exec_fd = memfd_create(name, MFD_CLOEXEC);
+    if(exec_fd < 0){
+        perror("memfd");
+        xexit(0);
+    }
+    write(exec_fd, compiler_ptr, compiler_length);
+    char exec_path[256];
+    memset(exec_path, 0, sizeof(exec_path));
+    sprintf(exec_path, "/proc/%d/fd/%d", getpid(), exec_fd);
+    execvp(exec_path, argv);
+}
+
+void execute_with_args(int argc, char **argv){
+       
+}
+
+void execute_with_decoded_options(unsigned int count, struct cl_decoded_option *options){
+    return;
 }
 
 void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options, int argc, char **argv){
@@ -108,7 +168,6 @@ void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option 
     if(!getcwd(pwd, ARG_HOOK_PATH_SIZE)){
         exit(-1);
     }
-    // fprintf(stderr, "\033[46;37mPath: %s\033[0m\n", pwd);
-    // observe_decoded_options(decoded_options_count, decoded_options);
-    call_orig_tmp(argc, argv);
+    // execute_with_args(argc, argv);
+    std::cout << "test" << std::endl;
 }
