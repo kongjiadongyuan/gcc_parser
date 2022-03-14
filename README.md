@@ -3,7 +3,9 @@
 This project aims at parsing incoming arguments just like GCC.
 The critical point of this project is to get the argument vector and the meaning of each argument, providing the ability to change at runtime.
 
-The project cannot be compiled correctly yet, but "xgcc" can be generated.
+~~The project cannot be compiled correctly yet, but "xgcc" can be generated.~~
+
+Now the entire project can be compiled normally.
 
 # Build
 
@@ -21,10 +23,14 @@ mkdir -p ${WORK_DIR}/build
 mkdir -p ${WORK_DIR}/install
 cd ${WORK_DIR}/build
 ${WORK_DIR}/gcc_parser/configure --prefix=${WORK_DIR}/install -enable-language=c,c++ --disable-multilib --disable-werror --disable-bootstrap
-# only compile xgcc
+
+# only build xgcc
 make maybe-all-gcc
-# only install gcc
 make maybe-install-gcc
+
+# or build the entire project
+make
+make install
 
 # have a try
 ${WORK_DIR}/install/bin/gcc test.c -o test
@@ -39,3 +45,6 @@ ${WORK_DIR}/install/bin/gcc test.c -o test
 GCC_OBJS = gcc.o gcc-main.o ggc-none.o arg_hook.o
 ```
 arghook.o is what we need.
+
+## DON'T print anything
+Neither stdout nor stderr, otherwise something bad will happen.

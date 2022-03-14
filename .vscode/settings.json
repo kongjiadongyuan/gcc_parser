@@ -4,6 +4,8 @@
         "*.inc": "c",
         "Wtype-limits-no.C": "cpp",
         "*.tcc": "c",
-        "system.h": "c"
+        "system.h": "c",
+        "*.x": "c",
+        "cstdlib": "c"
     }
 }

@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <limits.h>
+#include <string_view>
 #include <iostream>
 
 #define HOOK_GCC_PATH "/home/kjdy/gcc/install/bin/gcc"
@@ -101,24 +102,28 @@ bool startswith(char *s, char *pattern){
     }
 }
 
-char *find_executable_path(char *exe){
-    char *path = getenv("PATH");
+std::string find_executable_in_path(const std::string& executable){
+    auto path = getenv("PATH");
     while(true){
-        char *eptr = strchr(path, ':');
+        auto eptr = strchr(path, ':');
         int length;
         if(!eptr){
             length = strlen(path);
-        } else {
+        }else{
             length = eptr - path;
         }
-        char *file = (char *)xmalloc(length + strlen(exe) + 0x10);
-        memset(file, 0, length + strlen(exe) + 0x10);
-        strncpy(file, path, length);
-        strcat(file, exe);
-        // char *canonical = get_canonical_path(file);
-        free(file);
+        auto dir = std::string(path, length);
+        auto file = dir + std::string("/") + executable;
+
+        // std::cerr << file << std::endl;
+
+        if(eptr){
+            path = eptr + 1;
+        }else{
+            break;
+        }
     }
-    free(path);
+    return std::string("test");
 }
 
 void inline_execute_with_args(int argc, char **argv)
@@ -156,7 +161,7 @@ void inline_execute_with_args(int argc, char **argv)
 }
 
 void execute_with_args(int argc, char **argv){
-       
+
 }
 
 void execute_with_decoded_options(unsigned int count, struct cl_decoded_option *options){
@@ -168,6 +173,7 @@ void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option 
     if(!getcwd(pwd, ARG_HOOK_PATH_SIZE)){
         exit(-1);
     }
-    execute_with_args(argc, argv);
-    // std::cout << "test" << std::endl;
+    auto test = std::string("test");
+    find_executable_in_path(test);
+    // execute_with_args(argc, argv);
 }
