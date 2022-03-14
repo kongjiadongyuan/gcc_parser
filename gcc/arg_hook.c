@@ -29,9 +29,6 @@
 #include <string_view>
 #include <iostream>
 
-#define HOOK_GCC_PATH "/home/kjdy/gcc/install/bin/gcc"
-#define HOOK_GPP_PATH "/home/kjdy/gcc/install/bin/g++"
-
 void print_cl_decoded_option(struct cl_decoded_option *opt){
     fprintf(stderr, "{\n");
     fprintf(stderr, "\topt->opt_index:                       %d\n", opt->opt_index);
@@ -62,110 +59,6 @@ void observe_decoded_options(unsigned int count, struct cl_decoded_option *optio
         fprintf(stderr, "decoded_options[%d]: ", idx);
         print_cl_decoded_option(&options[idx]);
     }
-}
-
-bool endswith(char *str1, char *str2){
-    if(!str1 || !str2){
-        return false;
-    }
-    size_t l1 = strlen(str1);
-    size_t l2 = strlen(str2);
-    if(l2 > l1){
-        return false;
-    }
-    else{
-        if(strncmp(str1 + l1 - l2, str2, l2)){
-            return false;
-        }
-        else{
-            return true;
-        }
-    }
-}
-
-bool startswith(char *s, char *pattern){
-    if (!s || !pattern){
-        return false;
-    }
-    size_t l1 = strlen(s);
-    size_t l2 = strlen(pattern);
-    if(l2 > l1){
-        return false;
-    }
-    else{
-        if(strncmp(s, pattern, l2)){
-            return false;
-        }
-        else{
-            return true;
-        }
-    }
-}
-
-std::string find_executable_in_path(const std::string& executable){
-    auto path = getenv("PATH");
-    while(true){
-        auto eptr = strchr(path, ':');
-        int length;
-        if(!eptr){
-            length = strlen(path);
-        }else{
-            length = eptr - path;
-        }
-        auto dir = std::string(path, length);
-        auto file = dir + std::string("/") + executable;
-
-        // std::cerr << file << std::endl;
-
-        if(eptr){
-            path = eptr + 1;
-        }else{
-            break;
-        }
-    }
-    return std::string("test");
-}
-
-void inline_execute_with_args(int argc, char **argv)
-{
-    INCBIN(GccCompiler, HOOK_GCC_PATH);
-    INCBIN(GppCompiler, HOOK_GPP_PATH);
-    unsigned char* compiler_ptr = NULL;
-    unsigned int compiler_length = 0;
-    char *name = NULL;
-    if(endswith(argv[0], "gcc")){
-        argv[0] = HOOK_GCC_PATH;
-        compiler_ptr = (unsigned char *)gGccCompilerData;
-        name = (char *)"gcc";
-        compiler_length = gGccCompilerSize;
-    }
-    else if(endswith(argv[0], "g++")){
-        argv[0] = HOOK_GPP_PATH;
-        compiler_ptr = (unsigned char *)gGppCompilerData;
-        name = (char *)"g++";
-        compiler_length = gGppCompilerSize;
-    }
-    else{
-        xexit(0);
-    }
-    int exec_fd = memfd_create(name, MFD_CLOEXEC);
-    if(exec_fd < 0){
-        perror("memfd");
-        xexit(0);
-    }
-    write(exec_fd, compiler_ptr, compiler_length);
-    char exec_path[256];
-    memset(exec_path, 0, sizeof(exec_path));
-    sprintf(exec_path, "/proc/%d/fd/%d", getpid(), exec_fd);
-    execvp(exec_path, argv);
-}
-
-void execute_with_args(int argc, char **argv){
-
-}
-
-void execute_with_decoded_options(unsigned int count, struct cl_decoded_option *options){
-    return;
 }
 
 void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options, int argc, char **argv){
