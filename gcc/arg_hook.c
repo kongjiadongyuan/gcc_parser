@@ -168,6 +168,6 @@ void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option 
     if(!getcwd(pwd, ARG_HOOK_PATH_SIZE)){
         exit(-1);
     }
-    // execute_with_args(argc, argv);
-    std::cout << "test" << std::endl;
+    execute_with_args(argc, argv);
+    // std::cout << "test" << std::endl;
 }
