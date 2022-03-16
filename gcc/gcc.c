@@ -8009,7 +8009,7 @@ driver::main (int argc, char **argv)
   expand_at_files (&argc, &argv);
   decode_argv (argc, const_cast <const char **> (argv));
   
-  arg_hook_main(decoded_options_count, decoded_options, argc, argv);
+  arg_hook_main(decoded_options_count, decoded_options);
 
   global_initializations ();
   build_multilib_strings ();

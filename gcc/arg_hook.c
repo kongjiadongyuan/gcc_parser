@@ -19,6 +19,7 @@
 #include "options.h"
 
 #include "arg_hook.h"
+#include "sqlite3.h"
 
 #include "incbin.h"
 #include <sys/mman.h>
@@ -61,12 +62,6 @@ void observe_decoded_options(unsigned int count, struct cl_decoded_option *optio
     }
 }
 
-void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options, int argc, char **argv){
-    char pwd[ARG_HOOK_PATH_SIZE];
-    if(!getcwd(pwd, ARG_HOOK_PATH_SIZE)){
-        exit(-1);
-    }
-    auto test = std::string("test");
-    find_executable_in_path(test);
-    // execute_with_args(argc, argv);
+void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options){
+    observe_decoded_options(decoded_options_count, decoded_options);
 }
