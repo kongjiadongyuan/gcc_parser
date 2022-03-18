@@ -1,5 +1,7 @@
 #define _GNU_SOURCE
 
+#define ARG_HOOK_DEBUG
+
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -20,7 +22,8 @@
 
 #include "arg_hook.h"
 #include "sqlite3.h"
-
+#include "rev_options.h"
+// char *rev_opt_code[] = {...}
 #include "incbin.h"
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -30,9 +33,17 @@
 #include <string_view>
 #include <iostream>
 
+#define CREATE_TABLE "CREATE TABLE IF NOT EXISTS t_commands(\
+                        kid INTEGER PRIMARY KEY AUTOINCREMENT, \
+                        opt_index INTEGER, \
+                        opt_index)"
+
+
+
 void print_cl_decoded_option(struct cl_decoded_option *opt){
     fprintf(stderr, "{\n");
     fprintf(stderr, "\topt->opt_index:                       %d\n", opt->opt_index);
+    fprintf(stderr, "\topt->opt_index MACRO:                 %s\n", rev_opt_code[opt->opt_index]);
     fprintf(stderr, "\topt->warn_message:                    %s\n", opt->warn_message);
     fprintf(stderr, "\topt->arg:                             %s\n", opt->arg);
     fprintf(stderr, "\topt->orig_option_with_args_text:      %s\n", opt->orig_option_with_args_text);
@@ -62,6 +73,32 @@ void observe_decoded_options(unsigned int count, struct cl_decoded_option *optio
     }
 }
 
+void insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option){
+    ;
+}
+
+void insert_decoded_options(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options){
+    sqlite3 *db;
+    char *dbpath = getenv("COMPILE_COMMANDS_DB");
+    if(!dbpath){
+#ifdef ARG_HOOK_DEBUG
+        std::cerr << "COMPILE_COMMANDS_DB env not set" << std::endl;
+#endif
+        return;
+    }
+    int rc = sqlite3_open(dbpath, &db);
+    if (rc != SQLITE_OK) {
+#ifdef ARG_HOOK_DEBUG
+        std::cerr << "database open failed" << std::endl;
+#endif
+        return;
+    }
+    for(int _option_idx = 0; _option_idx < decoded_options_count; _option_idx ++){
+        insert_decoded_option(db, &decoded_options[_option_idx]);
+    }
+}
+
 void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options){
+    // insert_decoded_options(decoded_options_count, decoded_options);
     observe_decoded_options(decoded_options_count, decoded_options);
 }

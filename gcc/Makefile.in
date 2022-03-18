@@ -2333,6 +2333,7 @@ s-options-h: optionlist $(srcdir)/opt-functions.awk $(srcdir)/opt-read.awk \
 	       -f $(srcdir)/opth-gen.awk \
 	       < $< > tmp-options.h
 	$(SHELL) $(srcdir)/../move-if-change tmp-options.h options.h
+	/usr/bin/env python3 $(srcdir)/create_rev_options.py options.h rev_options.h
 	$(STAMP) $@
 
 dumpvers: dumpvers.c

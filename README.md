@@ -7,6 +7,16 @@ The critical point of this project is to get the argument vector and the meaning
 
 Now the entire project can be compiled normally.
 
+# Requirements
+GNU gcc needs to generate options.h at runtime, and this project needs to generate rev_options.h from options.h, so python3 and some package is neccessary.
+
+```bash
+sudo apt install python3-pip
+pip3 install robotpy-cppheaderparser
+```
+
+Make sure **python3** (not python or python2) in your path
+
 # Build
 
 ```bash
