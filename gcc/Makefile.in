@@ -2328,7 +2328,7 @@ options-save.c: optionlist $(srcdir)/opt-functions.awk $(srcdir)/opt-read.awk \
 
 options.h: s-options-h ; @true
 s-options-h: optionlist $(srcdir)/opt-functions.awk $(srcdir)/opt-read.awk \
-    $(srcdir)/opth-gen.awk
+    $(srcdir)/opth-gen.awk $(srcdir)/create_rev_options.py
 	$(AWK) -f $(srcdir)/opt-functions.awk -f $(srcdir)/opt-read.awk \
 	       -f $(srcdir)/opth-gen.awk \
 	       < $< > tmp-options.h

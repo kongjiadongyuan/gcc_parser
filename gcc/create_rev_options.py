@@ -29,7 +29,7 @@ def generate_rev_header(opt_code_list, path):
     res += "#ifndef REV_OPTIONS_H\n"
     res += "#define REV_OPTIONS_H\n"
     res += "\n" * 2
-    res += "char *rev_opt_code[] = {"
+    res += "char const *rev_opt_code[] = {"
     for idx, opt_name in enumerate(opt_code_list):
         res += f"\"{opt_name}\""
         if idx < len(opt_code_list) - 1:

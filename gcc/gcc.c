@@ -8037,7 +8037,6 @@ driver::main (int argc, char **argv)
   maybe_run_linker (argv[0]);
   final_actions ();
   return get_exit_code ();
-  return 0;
 }
 
 /* Locate the final component of argv[0] after any leading path, and set
