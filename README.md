@@ -58,3 +58,5 @@ arghook.o is what we need.
 
 ## DON'T print anything
 Neither stdout nor stderr, otherwise something bad will happen.
+
+[Here's the file where the main logic resides](gcc/arg_hook.c)
