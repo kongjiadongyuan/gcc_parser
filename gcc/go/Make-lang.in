@@ -37,7 +37,7 @@ GCCGO_OBJS = $(GCC_OBJS) go/gospec.o
 gccgo$(exeext): $(GCCGO_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a $(LIBDEPS)
 	+$(LINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
 	  $(GCCGO_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a \
-	  $(EXTRA_GCC_LIBS) $(LIBS) -pthread -ldl
+	  $(EXTRA_GCC_LIBS) $(LIBS) -pthread -ldl -luuid
 
 # The cross-compiler version.  This is built mainly as a signal to the
 # go.install-common target.  If this executable exists, it means that

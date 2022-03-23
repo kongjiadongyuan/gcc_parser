@@ -85,7 +85,7 @@ gfortran$(exeext): $(GFORTRAN_D_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a \
 	$(LIBDEPS)
 	+$(LINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
 	  $(GFORTRAN_D_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a \
-	  $(EXTRA_GCC_LIBS) $(LIBS) -pthread -ldl
+	  $(EXTRA_GCC_LIBS) $(LIBS) -pthread -ldl -luuid
 
 # Create a version of the gfortran driver which calls the cross-compiler.
 gfortran-cross$(exeext): gfortran$(exeext)

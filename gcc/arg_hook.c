@@ -33,17 +33,36 @@
 #include <limits.h>
 #include <string_view>
 #include <iostream>
-#include <boost/uuid/uuid.hpp>
-#include <boost/uuid/uuid_generators.hpp>
-#include <boost/uuid/uuid_io.hpp>
+#include <uuid/uuid.h>
+#include <sys/time.h>
 
 #define CREATE_TABLE "CREATE TABLE IF NOT EXISTS t_commands(\
-                        kid INTEGER PRIMARY KEY AUTOINCREMENT, \
-                        opt_index INTEGER, \
-                        opt_index)"
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                        runtime_uuid TEXT, \
+                        timestamp INTEGER, \
+                        output TEXT, \
+                        cmdline TEXT, \
+                        arg_idx INTEGER, \
+                        opt_idx INTEGER, \
+                        opt_name TEXT, \
+                        warn_message TEXT, \
+                        arg TEXT, \
+                        orig_option_with_args_text TEXT, \
+                        canonical_option_0 TEXT, \
+                        canonical_option_1 TEXT, \
+                        canonical_option_2 TEXT, \
+                        canonical_option_3 TEXT, \
+                        canonical_option_num_elements INTEGER, \
+                        value TEXT, \
+                        errors TEXT)"
+
 
 char output_resolved_path[PATH_MAX] = {0};
+char runtime_uuid[UUID_STR_LEN] = {0};
+char arg_string[0x1000] = {0};
+uint64_t runtime_timestamp;
 bool OPT_o_found = false;
+
 
 void print_cl_decoded_option(struct cl_decoded_option *opt){
     fprintf(stderr, "{\n");
@@ -82,22 +101,19 @@ void insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option){
     ;
 }
 
-void insert_decoded_options(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options){
+void insert_decoded_options(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options, int argc, char **argv){
     sqlite3 *db;
-    char *dbpath = getenv("COMPILE_COMMANDS_DB");
-    if(!dbpath){
+
+
+    // Generate UUID
+    uuid_t bin_uuid;
+    uuid_generate_random(bin_uuid);
+    uuid_unparse(bin_uuid, runtime_uuid);
+
+    
 #ifdef ARG_HOOK_DEBUG
-        std::cerr << "COMPILE_COMMANDS_DB env not set" << std::endl;
+    std::cerr << "UUID: " << runtime_uuid << std::endl;
 #endif
-        return;
-    }
-    int rc = sqlite3_open(dbpath, &db);
-    if (rc != SQLITE_OK) {
-#ifdef ARG_HOOK_DEBUG
-        std::cerr << "database open failed" << std::endl;
-#endif
-        return;
-    }
 
     // Find realpath of the output file.
     for(unsigned int _option_idx = 0; _option_idx < decoded_options_count; _option_idx ++){
@@ -113,12 +129,52 @@ void insert_decoded_options(unsigned int decoded_options_count, struct cl_decode
 #endif
     }
 
+    // Get timestamp
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    runtime_timestamp = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+#ifdef ARG_HOOK_DEBUG
+    std::cerr << "runtime_timestamp: " << runtime_timestamp << std::endl;
+#endif
+
+    // Restore arg_string
+    char arg_string[0x1000] = {0};
+    for(int _arg_idx; _arg_idx < argc; _arg_idx++){
+        strcat(arg_string, argv[_arg_idx]);
+        if(_arg_idx < argc - 1)
+            strcat(arg_string, " ");
+    }
+#ifdef ARG_HOOK_DEBUG
+    std::cerr << "arg_string: " << arg_string << std::endl;
+#endif
+
+    // Insert into database
+
+    // Get Database Path and Open
+    char *dbpath = getenv("COMPILE_COMMANDS_DB");
+    if(!dbpath){
+#ifdef ARG_HOOK_DEBUG
+        std::cerr << "COMPILE_COMMANDS_DB env not set" << std::endl;
+#endif
+        return;
+    }
+    int rc = sqlite3_open(dbpath, &db);
+    if (rc != SQLITE_OK) {
+#ifdef ARG_HOOK_DEBUG
+        std::cerr << "database open failed" << std::endl;
+#endif
+        return;
+    }
+
+    
+
     for(unsigned int _option_idx = 0; _option_idx < decoded_options_count; _option_idx ++){
         insert_decoded_option(db, &decoded_options[_option_idx]);
     }
+    sqlite3_finalize(db);
 }
 
-void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options){
+void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options, int argc, char **argv){
     // observe_decoded_options(decoded_options_count, decoded_options);
-    insert_decoded_options(decoded_options_count, decoded_options);
+    insert_decoded_options(decoded_options_count, decoded_options, argc, argv);
 }

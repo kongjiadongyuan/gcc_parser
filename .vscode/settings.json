@@ -6,6 +6,7 @@
         "*.tcc": "c",
         "system.h": "c",
         "*.x": "c",
-        "cstdlib": "c"
+        "cstdlib": "c",
+        "uuid.h": "c"
     }
 }

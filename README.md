@@ -11,7 +11,7 @@ Now the entire project can be compiled normally.
 GNU gcc needs to generate options.h at runtime, and this project needs to generate rev_options.h from options.h, so python3 and some package is neccessary.
 
 ```bash
-sudo apt install python3-pip
+sudo apt install python3-pip uuid-dev
 pip3 install robotpy-cppheaderparser
 ```
 
