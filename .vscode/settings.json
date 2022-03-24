@@ -7,6 +7,7 @@
         "system.h": "c",
         "*.x": "c",
         "cstdlib": "c",
-        "uuid.h": "c"
+        "uuid.h": "c",
+        "uuid4.h": "c"
     }
 }
