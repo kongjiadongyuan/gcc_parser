@@ -17,6 +17,16 @@ pip3 install robotpy-cppheaderparser
 
 Make sure **python3** (not python or python2) in your path
 
+# Use
+```bash
+# after downloading
+tar -zxvf gcc_parser.tar.gz
+export PATH=/path/to/gcc_parser/bin:$PATH
+
+# compile your project
+COMPILE_COMMANDS_DB=/path/to/target/db/${proj_name}.db make -j${nproc}
+```
+
 # Build
 
 ```bash
@@ -45,6 +55,7 @@ make install
 # have a try
 ${WORK_DIR}/install/bin/gcc test.c -o test
 ```
+
 
 # MEMO
 ## How to add a object file used in xgcc
