@@ -35,24 +35,34 @@
 #include <limits.h>
 #include <string_view>
 #include <iostream>
+#include <fstream>
 #include <sys/time.h>
 
 #define CREATE_TABLE "CREATE TABLE IF NOT EXISTS t_commands(\
                         id INTEGER PRIMARY KEY AUTOINCREMENT, \
                         runtime_uuid TEXT, \
                         timestamp INTEGER, \
+                        pwd TEXT, \
+                        proj_root TEXT, \
                         output TEXT, \
                         cmdline TEXT, \
                         arg_idx INTEGER, \
                         decoded_argv JSON);"
 
-
 char output_resolved_path[PATH_MAX] = {0};
+char *proj_root;
+char *pwd_path;
 char runtime_uuid[UUID4_LEN] = {0};
 char arg_string[0x1000] = {0};
 uint64_t runtime_timestamp;
 bool OPT_o_found = false;
 bool arg_hook_failed = false;
+
+int arg_hook_sqlite_busy_handler(void *data, int n_retries){
+    int sleep = (rand() % 10) * 1000;
+    usleep(sleep);
+    return 1;
+}
 
 
 void print_cl_decoded_option(struct cl_decoded_option *opt){
@@ -111,7 +121,7 @@ char *decoded_option_serialize(struct cl_decoded_option *option){
     return json_str;
 }
 
-int insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option, unsigned int _option_idx){
+int insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option, unsigned int _option_idx, char **sqlite_fail_msg){
     char *insert_cmd;
     int size = 0x200;
     insert_cmd = (char *)xmalloc(size);
@@ -128,12 +138,16 @@ int insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option, unsigne
                 NULL,\n\
                 '%s',\n\
                 %ld,\n\
+                '%s', \n\
+                '%s', \n\
                 '%s',\n\
                 '%s',\n\
                 %d,\n\
                 '%s');",
             runtime_uuid,
             runtime_timestamp,
+            pwd_path,
+            proj_root,
             output_resolved_path,
             arg_string,
             _option_idx,
@@ -152,23 +166,27 @@ int insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option, unsigne
 #ifdef ARG_HOOK_DEBUG
     std::cerr << insert_cmd << std::endl;
 #endif
-    int rc = sqlite3_exec(db, insert_cmd, NULL, NULL, NULL);
+    int rc = sqlite3_exec(db, insert_cmd, NULL, NULL, sqlite_fail_msg);
     free(insert_cmd);
     return rc;
 }
 
 void insert_decoded_options(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options, int argc, char **argv){
     sqlite3 *db;
-
+    char *sqlite_fail_msg;
 
     // Generate UUID
     uuid4_init();
     uuid4_generate(runtime_uuid);
 
-    
 #ifdef ARG_HOOK_DEBUG
     std::cerr << "UUID: " << runtime_uuid << std::endl;
 #endif
+
+    // get pwd_path
+    pwd_path = getcwd(NULL, 0);
+    // get proj_root
+    proj_root = getenv("PROJ_ROOT");
 
     // Find realpath of the output file.
     for(unsigned int _option_idx = 0; _option_idx < decoded_options_count; _option_idx ++){
@@ -223,50 +241,50 @@ void insert_decoded_options(unsigned int decoded_options_count, struct cl_decode
     }
     int rc = sqlite3_open(dbpath, &db);
     if (rc != SQLITE_OK) {
-#ifdef ARG_HOOK_DEBUG
-        std::cerr << "database open failed" << std::endl;
-#endif
-        arg_hook_failed = true;
-        return;
+        goto SQLITE_OP_FAIL;
     }
 
+    sqlite3_busy_handler(db, arg_hook_sqlite_busy_handler, NULL);
+
     // Create table
-    rc = sqlite3_exec(db, CREATE_TABLE, NULL, NULL, NULL);
+    rc = sqlite3_exec(db, CREATE_TABLE, NULL, NULL, &sqlite_fail_msg);
     if(rc != SQLITE_OK) {
-#ifdef ARG_HOOK_DEBUG
-        std::cerr << "create table failed" << std::endl;
-#endif
-        arg_hook_failed = true;
-        return;
+        goto SQLITE_OP_FAIL;
     }
 
     // begin transaction
-    rc = sqlite3_exec(db, "begin;", NULL, NULL, NULL);
+    rc = sqlite3_exec(db, "begin;", NULL, NULL, &sqlite_fail_msg);
     if(rc != SQLITE_OK) {
-#ifdef ARG_HOOK_DEBUG
-        std::cerr << "begin failed" << std::endl;
-#endif
-        arg_hook_failed = true;
-        return;
+        goto SQLITE_OP_FAIL;
     }
 
     // insert each row
     for(unsigned int _option_idx = 0; _option_idx < decoded_options_count; _option_idx ++){
-        rc = insert_decoded_option(db, &decoded_options[_option_idx], _option_idx);
+        rc = insert_decoded_option(db, &decoded_options[_option_idx], _option_idx, &sqlite_fail_msg);
         if (rc != SQLITE_OK) {
-#ifdef ARG_HOOK_DEBUG
-            std::cerr << "insert failed" << std::endl;
-#endif
             sqlite3_exec(db, "rollback;", NULL, NULL, NULL);
-            arg_hook_failed = true;
-            return;
+            goto SQLITE_OP_FAIL;
         }
     }
     sqlite3_exec(db, "commit;", NULL, NULL, NULL);
     sqlite3_close(db);
+    return;
+
+SQLITE_OP_FAIL:
+    // std::fstream logFile;
+    // char logfile_path[256] = {0};
+    // sprintf(logfile_path, "/tmp/arg_hook_log/%s.log", runtime_uuid);
+    // logFile.open(logfile_path, std::ios::out | std::ios::app);
+    // logFile << sqlite_fail_msg << std::endl;
+    // logFile.close();
+    arg_hook_failed = true;
+    return;
 }
 
 void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options, int argc, char **argv){
+    // srand initialization
+    srand(time(NULL));
+
     // if COMPILE_COMMANDS_DB not set, return.
     if (!getenv("COMPILE_COMMANDS_DB")){
         return;
