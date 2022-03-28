@@ -53,7 +53,7 @@ char output_resolved_path[PATH_MAX] = {0};
 char *proj_root;
 char *pwd_path;
 char runtime_uuid[UUID4_LEN] = {0};
-char arg_string[0x1000] = {0};
+char *arg_string = NULL;
 uint64_t runtime_timestamp;
 bool OPT_o_found = false;
 bool arg_hook_failed = false;
@@ -219,7 +219,14 @@ void insert_decoded_options(unsigned int decoded_options_count, struct cl_decode
 #endif
 
     // Restore arg_string
+    uint64_t arg_string_length = 0x400;
+    arg_string = (char *)xmalloc(arg_string_length);
+    memset(arg_string, 0, arg_string_length);
     for(int _arg_idx; _arg_idx < argc; _arg_idx++){
+        if(strlen(arg_string) + strlen(argv[_arg_idx]) + 0x100 >= arg_string_length){
+            arg_string_length = (strlen(arg_string) + strlen(argv[_arg_idx]) + 0x100) * 2;
+            arg_string = (char *)xrealloc(arg_string, arg_string_length);
+        }
         strcat(arg_string, argv[_arg_idx]);
         if(_arg_idx < argc - 1)
             strcat(arg_string, " ");
