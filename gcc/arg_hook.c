@@ -47,7 +47,7 @@
                         output TEXT, \
                         cmdline TEXT, \
                         arg_idx INTEGER, \
-                        decoded_argv JSON);"
+                        json JSON);"
 
 char output_resolved_path[PATH_MAX] = {0};
 char *proj_root;
@@ -163,6 +163,7 @@ int insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option, unsigne
             break;
         }
     }
+    setenv("GCC_RUNTIME_UUID", runtime_uuid, 1);
 #ifdef ARG_HOOK_DEBUG
     std::cerr << insert_cmd << std::endl;
 #endif
