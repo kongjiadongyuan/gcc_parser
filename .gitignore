@@ -68,3 +68,5 @@ stamp-*
 /isl*
 
 .vscode/
+
+.dir-locals.el
