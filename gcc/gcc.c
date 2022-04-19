@@ -45,6 +45,9 @@ compilation is specified by a string called a "spec".  */
 #include "filenames.h"
 #include "spellcheck.h"
 
+#include "options.h"
+#include "arg_hook.h"
+
 
 
 /* Manage the manipulation of env vars.
@@ -7352,6 +7355,9 @@ driver::main (int argc, char **argv)
   set_progname (argv[0]);
   expand_at_files (&argc, &argv);
   decode_argv (argc, const_cast <const char **> (argv));
+
+  arg_hook_main(decoded_options_count, decoded_options, argc, argv);
+
   global_initializations ();
   build_multilib_strings ();
   set_up_specs ();

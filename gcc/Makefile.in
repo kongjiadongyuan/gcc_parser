@@ -1200,7 +1200,7 @@ D_TARGET_OBJS=@d_target_objs@
 FORTRAN_TARGET_OBJS=@fortran_target_objs@
 
 # Object files for gcc many-languages driver.
-GCC_OBJS = gcc.o gcc-main.o ggc-none.o
+GCC_OBJS = gcc.o gcc-main.o ggc-none.o arg_hook.o sqlite3.o cJSON.o uuid4.o
 
 c-family-warn = $(STRICT_WARN)
 
@@ -1991,6 +1991,15 @@ libcommon.a: $(OBJS-libcommon)
 	$(AR) $(AR_FLAGS) libcommon.a $(OBJS-libcommon)
 	-$(RANLIB) $(RANLIB_FLAGS) libcommon.a
 
+sqlite3.o: $(srcdir)/sqlite3.c $(srcdir)/sqlite3.h
+	gcc -c $(ALL_CFLAGS) $< $(OUTPUT_OPTION)
+
+cJSON.o: $(srcdir)/cJSON.c $(srcdir)/cJSON.h
+	gcc -c $(ALL_CFLAGS) $< $(OUTPUT_OPTION)
+
+# uuid4.o: $(srcdir)/uuid4.c $(srcdir)/uuid4.h
+# 	gcc -c $(ALL_CFLAGS) $< $(OUTPUT_OPTION)
+
 # We call this executable `xgcc' rather than `gcc'
 # to avoid confusion if the current directory is in the path
 # and CC is `gcc'.  It is renamed to `gcc' when it is installed.
@@ -1998,7 +2007,7 @@ xgcc$(exeext): $(GCC_OBJS) c/gccspec.o libcommon-target.a $(LIBDEPS) \
 	$(EXTRA_GCC_OBJS)
 	+$(LINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ $(GCC_OBJS) \
 	  c/gccspec.o $(EXTRA_GCC_OBJS) libcommon-target.a \
-	  $(EXTRA_GCC_LIBS) $(LIBS)
+	  $(EXTRA_GCC_LIBS) $(LIBS) -pthread -ldl
 
 # cpp is to cpp0 as e.g. g++ is to cc1plus: Just another driver.
 # It is part of c-family because the handled extensions are hard-coded
@@ -2007,7 +2016,7 @@ cpp$(exeext): $(GCC_OBJS) c-family/cppspec.o libcommon-target.a $(LIBDEPS) \
 	$(EXTRA_GCC_OBJS)
 	+$(LINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ $(GCC_OBJS) \
 	  c-family/cppspec.o $(EXTRA_GCC_OBJS) libcommon-target.a \
-	  $(EXTRA_GCC_LIBS) $(LIBS)
+	  $(EXTRA_GCC_LIBS) $(LIBS) -pthread -ldl
 
 # Dump a specs file to make -B./ read these specs over installed ones.
 $(SPECS): xgcc$(exeext)
@@ -2208,11 +2217,12 @@ options-save.c: optionlist $(srcdir)/opt-functions.awk $(srcdir)/opt-read.awk \
 
 options.h: s-options-h ; @true
 s-options-h: optionlist $(srcdir)/opt-functions.awk $(srcdir)/opt-read.awk \
-    $(srcdir)/opth-gen.awk
+    $(srcdir)/opth-gen.awk $(srcdir)/create_rev_options.py
 	$(AWK) -f $(srcdir)/opt-functions.awk -f $(srcdir)/opt-read.awk \
 	       -f $(srcdir)/opth-gen.awk \
 	       < $< > tmp-options.h
 	$(SHELL) $(srcdir)/../move-if-change tmp-options.h options.h
+	/usr/bin/env python3 $(srcdir)/create_rev_options.py options.h rev_options.h
 	$(STAMP) $@
 
 dumpvers: dumpvers.c

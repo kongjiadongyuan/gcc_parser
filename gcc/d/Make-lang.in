@@ -38,7 +38,7 @@ GDC_OBJS = $(GCC_OBJS) d/d-spec.o
 gdc$(exeext): $(GDC_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a $(LIBDEPS)
 	+$(LINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
 	  $(GDC_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a \
-	  $(EXTRA_GCC_LIBS) $(LIBS)
+	  $(EXTRA_GCC_LIBS) $(LIBS) -pthread -ldl
 
 # Create a version of the gdc driver which calls the cross-compiler.
 gdc-cross$(exeext): gdc$(exeext)

@@ -58,7 +58,7 @@ GXX_OBJS = $(GCC_OBJS) cp/g++spec.o
 xg++$(exeext): $(GXX_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a $(LIBDEPS)
 	+$(LINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
 	  $(GXX_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a \
-	  $(EXTRA_GCC_LIBS) $(LIBS)
+	  $(EXTRA_GCC_LIBS) $(LIBS) -pthread -ldl
 
 # Create a version of the g++ driver which calls the cross-compiler.
 g++-cross$(exeext): xg++$(exeext)
