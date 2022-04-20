@@ -1,6 +1,7 @@
 # gcc_parser
 
 This branch (based on gcc-9.3.0) has been tested with ubuntu:20.04, as gcc-9.3.0 is default compiler of ubuntu:20.04.
+This branch (9.3.0) is currently the main maintained branch where features will be implemented and tested first.
 
 This project aims at parsing incoming arguments just like GCC.
 The critical point of this project is to get the argument vector and the meaning of each argument, providing the ability to change at runtime.
