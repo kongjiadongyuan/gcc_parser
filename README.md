@@ -1,4 +1,7 @@
-# gcc arg parser
+# gcc_parser
+
+This branch (based on gcc-11.2.0) has been tested with ubuntu:22.04, as gcc-11.2.0 is default compiler of ubuntu:22.04.
+Branch 9.3.0 is currently the main maintained branch where features will be implemented and tested first.
 
 This project aims at parsing incoming arguments just like GCC.
 The critical point of this project is to get the argument vector and the meaning of each argument, providing the ability to change at runtime.
@@ -24,7 +27,11 @@ tar -zxvf gcc_parser.tar.gz
 export PATH=/path/to/gcc_parser/bin:$PATH
 
 # compile your project
-COMPILE_COMMANDS_DB=/path/to/target/db/${proj_name}.db make -j${nproc}
+COMPILE_COMMANDS_DB=/path/to/target/db/${proj_name}.db PROJ_ROOT=/path/where/compilation/starts make -j${nproc}
+# Once COMPILE_COMMANDS_DB specified, gcc_parser will create a sqlite3 database
+# Or gcc_parser may act like a gcc without any modification.
+
+# PROJ_ROOT is optional.
 ```
 
 # Build
@@ -55,7 +62,6 @@ make install
 # have a try
 ${WORK_DIR}/install/bin/gcc test.c -o test
 ```
-
 
 # MEMO
 ## How to add a object file used in xgcc
