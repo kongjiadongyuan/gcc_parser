@@ -289,14 +289,142 @@ SQLITE_OP_FAIL:
     return;
 }
 
-void arg_hook_main(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options, int argc, char **argv){
+bool starts_with(const char *str, const char *prefix)
+{
+    if (!str || !prefix)
+        return 0;
+   if(strncmp(str, prefix, strlen(prefix)) == 0)
+        return 1;
+   return 0;
+}
+
+void hijack_debug_options(unsigned int *decoded_options_count_ref, struct cl_decoded_option **decoded_options_ref){
+    // change debug options to -gdwarf-4
+    unsigned int target_vector_count = 0;
+    struct cl_decoded_option *target_vector = XNEWVEC(struct cl_decoded_option, *decoded_options_count_ref + 1);
+    struct cl_decoded_option *decoded_options = *decoded_options_ref;
+
+    // filter other debug options
+    for (unsigned int _option_index=0; _option_index < *decoded_options_count_ref; _option_index ++){
+        if (starts_with(rev_opt_code[decoded_options[_option_index].opt_index], "OPT_g")){
+            continue;
+        }
+        memcpy(&target_vector[target_vector_count], &decoded_options[_option_index], sizeof(struct cl_decoded_option));
+        target_vector_count += 1;
+    }
+
+    // add -gdwarf-4
+    target_vector[target_vector_count].opt_index = OPT_gdwarf_;
+    target_vector[target_vector_count].warn_message = NULL;
+    target_vector[target_vector_count].arg = "4";
+    target_vector[target_vector_count].orig_option_with_args_text = "-gdwarf-4";
+    target_vector[target_vector_count].canonical_option_num_elements = 1;
+    target_vector[target_vector_count].canonical_option[0] = "-gdwarf-4";
+    target_vector[target_vector_count].canonical_option[1] = NULL;
+    target_vector[target_vector_count].canonical_option[2] = NULL;
+    target_vector[target_vector_count].canonical_option[3] = NULL;
+    target_vector[target_vector_count].value = 4;
+    target_vector[target_vector_count].errors = 0;
+    target_vector_count += 1;
+
+    // replace
+    free(*decoded_options_ref);
+    *decoded_options_count_ref = target_vector_count;
+    *decoded_options_ref = target_vector;
+}
+
+void hijack_optimization(unsigned int *decoded_options_count_ref, struct cl_decoded_option **decoded_options_ref)
+{
+    // get optimization level from environment
+    char *target_opt_level = getenv("GCC_PARSER_HIJACK_OPTIMIZATION");
+    if ((!strcmp(target_opt_level, "fast")) ||
+        (!strcmp(target_opt_level, "s")) ||
+        (!strcmp(target_opt_level, "g")) ||
+        (!strcmp(target_opt_level, "0")) ||
+        (!strcmp(target_opt_level, "1")) ||
+        (!strcmp(target_opt_level, "2")) ||
+        (!strcmp(target_opt_level, "3")))
+    {
+        // change optimization depending on environment
+        unsigned int target_vector_count = 0;
+        struct cl_decoded_option *target_vector = XNEWVEC(struct cl_decoded_option, *decoded_options_count_ref + 1);
+        struct cl_decoded_option *decoded_options = *decoded_options_ref;
+
+        // filter other optimization options
+        for (unsigned int _option_index = 0; _option_index < *decoded_options_count_ref; _option_index++)
+        {
+            if (starts_with(rev_opt_code[decoded_options[_option_index].opt_index], "OPT_O"))
+            {
+                continue;
+            }
+            memcpy(&target_vector[target_vector_count], &decoded_options[_option_index], sizeof(struct cl_decoded_option));
+            target_vector_count += 1;
+        }
+        if (!strcmp(target_opt_level, "fast")){
+            target_vector[target_vector_count].opt_index = OPT_Ofast;
+            target_vector[target_vector_count].arg = NULL;
+        }
+        else if(!strcmp(target_opt_level, "s")){
+            target_vector[target_vector_count].opt_index = OPT_Os;
+            target_vector[target_vector_count].arg = NULL;
+        }
+        else if(!strcmp(target_opt_level, "g")){
+            target_vector[target_vector_count].opt_index = OPT_Og;
+            target_vector[target_vector_count].arg = NULL;
+        }
+        else{
+            target_vector[target_vector_count].opt_index = OPT_O;
+            target_vector[target_vector_count].arg = target_opt_level;
+        }
+        // target_vector[target_vector_count].opt_index
+        target_vector[target_vector_count].warn_message = NULL;
+        // target_vector[target_vector_count].arg
+        char *tmp_arg_str = (char *)xmalloc(strlen("-O") + strlen(target_opt_level) + 1);
+        sprintf(tmp_arg_str, "-O%s", target_opt_level);
+        target_vector[target_vector_count].orig_option_with_args_text = tmp_arg_str;
+        target_vector[target_vector_count].canonical_option_num_elements = 1;
+        target_vector[target_vector_count].canonical_option[0] = tmp_arg_str;
+        target_vector[target_vector_count].canonical_option[1] = NULL;
+        target_vector[target_vector_count].canonical_option[2] = NULL;
+        target_vector[target_vector_count].canonical_option[3] = NULL;
+        target_vector[target_vector_count].value = 1;
+        target_vector[target_vector_count].errors = 4;
+
+        target_vector_count += 1;
+        // replace
+        *decoded_options_count_ref = target_vector_count;
+        *decoded_options_ref = target_vector;
+    }
+    else{
+        // do nothing
+        return;
+    }
+}
+
+void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_option **decoded_options_ref, int argc, char **argv){
     // srand initialization
     srand(time(NULL));
 
     // if COMPILE_COMMANDS_DB not set, return.
-    if (!getenv("COMPILE_COMMANDS_DB")){
+    
+    // debug
+    if(getenv("GCC_PARSER_DEBUG")){
+        observe_decoded_options(*decoded_options_count_ref, *decoded_options_ref);
+    }
+
+    // hijack debug options
+    if(getenv("GCC_PARSER_HIJACK_DWARF4")){
+        hijack_debug_options(decoded_options_count_ref, decoded_options_ref);
+    }
+
+    // hijack optimization
+    if(getenv("GCC_PARSER_HIJACK_OPTIMIZATION")){
+        hijack_optimization(decoded_options_count_ref, decoded_options_ref);
+    }
+
+    // create database
+    if (getenv("COMPILE_COMMANDS_DB")){
+        insert_decoded_options(*decoded_options_count_ref, *decoded_options_ref, argc, argv);
         return;
     }
-    // Main logic start.
-    insert_decoded_options(decoded_options_count, decoded_options, argc, argv);
 }
