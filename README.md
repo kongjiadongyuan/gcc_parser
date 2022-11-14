@@ -10,7 +10,7 @@ The critical point of this project is to get the argument vector and the meaning
 
 Now the entire project can be compiled normally.
 
-# Requirements
+# Dependencies
 GNU gcc needs to generate options.h at runtime, and this project needs to generate rev_options.h from options.h, so python3 and some package is neccessary.
 
 ```bash
@@ -19,20 +19,6 @@ pip3 install robotpy-cppheaderparser
 ```
 
 Make sure **python3** (not python or python2) in your path
-
-# Use
-```bash
-# after downloading
-tar -zxvf gcc_parser.tar.gz
-export PATH=/path/to/gcc_parser/bin:$PATH
-
-# compile your project
-COMPILE_COMMANDS_DB=/path/to/target/db/${proj_name}.db PROJ_ROOT=/path/where/compilation/starts make -j${nproc}
-# Once COMPILE_COMMANDS_DB specified, gcc_parser will create a sqlite3 database
-# Or gcc_parser may act like a gcc without any modification.
-
-# PROJ_ROOT is optional.
-```
 
 # Build
 
@@ -51,11 +37,11 @@ mkdir -p ${WORK_DIR}/install
 cd ${WORK_DIR}/build
 ${WORK_DIR}/gcc_parser/configure --prefix=${WORK_DIR}/install -enable-language=c,c++ --disable-multilib --disable-werror --disable-bootstrap
 
-# only build xgcc
-make maybe-all-gcc
-make maybe-install-gcc
+# maybe only build xgcc
+# make maybe-all-gcc
+# make maybe-install-gcc
 
-# or build the entire project
+# build the entire project
 make
 make install
 
@@ -63,7 +49,21 @@ make install
 ${WORK_DIR}/install/bin/gcc test.c -o test
 ```
 
+
+# Use
+gcc_parser changes compilation behavior based on environment variables
+The currently supported environment variables are listed below
+
+|environment variable|value|meaning|
+|---|---|---|
+|COMPILE_COMMANDS_DB|path|path to compile_commands.sqlite3, controls information recording behavior, if not set, gcc_parser will not save runtime information|
+|PROJ_ROOT|path|path to the target project's root path, will be recorded in the database|
+|ARCHIVE|path|path to save backup files, if not set, gcc_parser will not create backup files. ld_hook also depends on this environment variable|
+|GCC_PARSER_HIJACK_DWARF4|1|if set, gcc_parser will cover any debug options like "-g*", and force "-gdwarf-4"|
+|GCC_PARSER_HIJACK_OPTIMIZATION|0,1,2,3,fast,g,s|if set, gcc_parser will force optimization level to which the value corresponding to|
+
 # MEMO
+Here are some development records.
 ## How to add a object file used in xgcc
 ```makefile
 # ${WORK_DIR}/gcc_parser/gcc/Makefile.in
