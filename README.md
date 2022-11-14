@@ -58,9 +58,32 @@ The currently supported environment variables are listed below
 |---|---|---|
 |COMPILE_COMMANDS_DB|path|path to compile_commands.sqlite3, controls information recording behavior, if not set, gcc_parser will not save runtime information|
 |PROJ_ROOT|path|path to the target project's root path, will be recorded in the database|
-|ARCHIVE|path|path to save backup files, if not set, gcc_parser will not create backup files. ld_hook also depends on this environment variable|
+|GCC_ARCHIVE|path|path to save backup files, if not set, gcc_parser will not create backup files|
 |GCC_PARSER_HIJACK_DWARF4|1|if set, gcc_parser will cover any debug options like "-g*", and force "-gdwarf-4"|
 |GCC_PARSER_HIJACK_OPTIMIZATION|0,1,2,3,fast,g,s|if set, gcc_parser will force optimization level to which the value corresponding to|
+
+## 数据库格式
+
+### 约定
+1. 以下所有的路径都必须满足如下条件之一：
+    1. 本身是绝对路径；
+    2. pwd+路径字符串是绝对路径；
+2. COMPILE_COMMANDS_DB环境变量指定数据库的路径，**必须是绝对路径**；如果没有指定，hook函数应当直接返回，对外表现为没有修改过的编译器（链接器）；
+3. PROJ_ROOT变量不指定视为空字符串；
+
+### gcc_parser
+1. 表：t_commands
+2. 字段如下：
+    1. id: 自增主键
+    2. runtime_uuid: 每一次运行都不同
+    3. timestamp: 以毫秒为单位的时间戳
+    4. pwd: 当前命令执行的路径（getcwd()的返回值）
+    5. proj_root: 由环境变量PROJ_ROOT传入的值
+    6. output: -o指定的输出文件的路径
+    7. cmdline: 执行的完整命令行
+    8. arg_idx: 当前decoded_args结构体在整条命令中的顺序
+    9. json: 其他要存储的内容，由json格式存入
+3. traced：当gcc被hook时，在环境变量中添加GCC_RUNTIME_UUID，其值与runtime_uuid相等，由ld_hook读取
 
 # MEMO
 Here are some development records.

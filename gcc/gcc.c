@@ -7382,6 +7382,8 @@ driver::main (int argc, char **argv)
   do_spec_on_infiles ();
   maybe_run_linker (argv[0]);
   final_actions ();
+  // maybe snapshot
+  arg_hook_end(decoded_options_count, decoded_options);
   return get_exit_code ();
 }
 

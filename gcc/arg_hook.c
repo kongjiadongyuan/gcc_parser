@@ -401,6 +401,45 @@ void hijack_optimization(unsigned int *decoded_options_count_ref, struct cl_deco
     }
 }
 
+void archive_gcc(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options){
+    char **input_files = XNEWVEC(char *, decoded_options_count);
+    unsigned int input_files_count = 0;
+    char **output_files = XNEWVEC(char *, decoded_options_count);
+    unsigned int output_files_count = 0;
+    
+    char *gcc_archive_path = getenv("GCC_ARCHIVE");
+    char *command = (char *)xmalloc(65535);
+    snprintf(command, 65535, "mkdir -p %s/%s", gcc_archive_path, runtime_uuid);
+    system(command);
+    snprintf(command, 65535, "mkdir -p %s/%s/input", gcc_archive_path, runtime_uuid);
+    system(command);
+    snprintf(command, 65535, "mkdir -p %s/%s/output", gcc_archive_path, runtime_uuid);
+    system(command);
+    free(command);
+
+    // save input files and output files
+    for (unsigned int _option_index = 0; _option_index < decoded_options_count; _option_index ++){
+        if (decoded_options[_option_index].opt_index == OPT_SPECIAL_input_file){
+            char *command = (char *)xmalloc(65535);
+            char *tmp_str = (char *)xmalloc(65535);
+            getcwd(tmp_str, 65535);
+            snprintf(command, 65535, "cp %s/%s %s/%s/input", tmp_str, decoded_options[_option_index].arg, gcc_archive_path, runtime_uuid);
+            system(command);
+            free(tmp_str);
+            free(command);
+        }
+        if (decoded_options[_option_index].opt_index == OPT_o){
+            char *command = (char *)xmalloc(65535);
+            char *tmp_str = (char *)xmalloc(65535);
+            getcwd(tmp_str, 65535);
+            snprintf(command, 65535, "cp %s/%s %s/%s/output", tmp_str, decoded_options[_option_index].canonical_option[1], gcc_archive_path, runtime_uuid);
+            system(command);
+            free(tmp_str);
+            free(command);
+        }
+    }
+}
+
 void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_option **decoded_options_ref, int argc, char **argv){
     // srand initialization
     srand(time(NULL));
@@ -426,5 +465,11 @@ void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_op
     if (getenv("COMPILE_COMMANDS_DB")){
         insert_decoded_options(*decoded_options_count_ref, *decoded_options_ref, argc, argv);
         return;
+    }
+}
+
+void arg_hook_end(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options){
+    if(getenv("GCC_ARCHIVE")){
+        archive_gcc(decoded_options_count, decoded_options);
     }
 }
