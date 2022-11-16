@@ -421,20 +421,14 @@ void archive_gcc(unsigned int decoded_options_count, struct cl_decoded_option *d
     for (unsigned int _option_index = 0; _option_index < decoded_options_count; _option_index ++){
         if (decoded_options[_option_index].opt_index == OPT_SPECIAL_input_file){
             char *command = (char *)xmalloc(65535);
-            char *tmp_str = (char *)xmalloc(65535);
-            getcwd(tmp_str, 65535);
-            snprintf(command, 65535, "cp %s/%s %s/%s/input", tmp_str, decoded_options[_option_index].arg, gcc_archive_path, runtime_uuid);
+            snprintf(command, 65535, "cp %s %s/%s/input", decoded_options[_option_index].arg, gcc_archive_path, runtime_uuid);
             system(command);
-            free(tmp_str);
             free(command);
         }
         if (decoded_options[_option_index].opt_index == OPT_o){
             char *command = (char *)xmalloc(65535);
-            char *tmp_str = (char *)xmalloc(65535);
-            getcwd(tmp_str, 65535);
-            snprintf(command, 65535, "cp %s/%s %s/%s/output", tmp_str, decoded_options[_option_index].canonical_option[1], gcc_archive_path, runtime_uuid);
+            snprintf(command, 65535, "cp %s %s/%s/output", decoded_options[_option_index].canonical_option[1], gcc_archive_path, runtime_uuid);
             system(command);
-            free(tmp_str);
             free(command);
         }
     }
