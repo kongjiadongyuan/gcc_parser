@@ -176,10 +176,6 @@ void insert_decoded_options(unsigned int decoded_options_count, struct cl_decode
     sqlite3 *db;
     char *sqlite_fail_msg;
 
-    // Generate UUID
-    uuid4_init();
-    uuid4_generate(runtime_uuid);
-
 #ifdef ARG_HOOK_DEBUG
     std::cerr << "UUID: " << runtime_uuid << std::endl;
 #endif
@@ -435,11 +431,13 @@ void archive_gcc(unsigned int decoded_options_count, struct cl_decoded_option *d
 }
 
 void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_option **decoded_options_ref, int argc, char **argv){
+    // Generate UUID
+    uuid4_init();
+    uuid4_generate(runtime_uuid);
+
     // srand initialization
     srand(time(NULL));
 
-    // if COMPILE_COMMANDS_DB not set, return.
-    
     // debug
     if(getenv("GCC_PARSER_DEBUG")){
         observe_decoded_options(*decoded_options_count_ref, *decoded_options_ref);
