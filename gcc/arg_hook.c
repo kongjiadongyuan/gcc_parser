@@ -58,6 +58,8 @@ uint64_t runtime_timestamp;
 bool OPT_o_found = false;
 bool arg_hook_failed = false;
 
+bool arg_hook_skip = false;
+
 int arg_hook_sqlite_busy_handler(void *data, int n_retries){
     int sleep = (rand() % 10) * 1000;
     usleep(sleep);
@@ -163,7 +165,7 @@ int insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option, unsigne
             break;
         }
     }
-    setenv("GCC_RUNTIME_UUID", runtime_uuid, 1);
+    
 #ifdef ARG_HOOK_DEBUG
     std::cerr << insert_cmd << std::endl;
 #endif
@@ -430,13 +432,167 @@ void archive_gcc(unsigned int decoded_options_count, struct cl_decoded_option *d
     }
 }
 
+
+
+void get_pid_argv(pid_t pid, char ***process_argv_ptr, int *process_argc_ptr){
+    char *cmdline_path = (char *)xmalloc(65535);
+    snprintf(cmdline_path, 65535, "/proc/%d/cmdline", pid);
+    FILE *cmdline_file = fopen(cmdline_path, "r");
+    size_t cell_size = 1000;
+    int cell_count = 1;
+    char *arg_str = (char *)xmalloc(cell_count * cell_size);
+    size_t read_len = 0;
+    while (true) {
+        int read_count = fread(arg_str + read_len, 1, cell_size, cmdline_file);
+        read_len += read_count;
+        if (read_count < cell_size) {
+            break;
+        }
+        else {
+            cell_count += 1;
+            arg_str = (char *)xrealloc(arg_str, cell_count * cell_size);
+        }
+    }
+    fclose(cmdline_file);
+    free(cmdline_path);
+
+    char **process_argv = XNEWVEC(char *, 65535);
+    int process_argc = 0;
+
+    for (int __cursor = 0; __cursor < read_len - 1; __cursor ++){
+        if (__cursor == 0){
+            process_argv[process_argc] = &arg_str[__cursor];
+            process_argc += 1;
+        }
+        else if (arg_str[__cursor] == '\0'){
+            process_argv[process_argc] = &arg_str[__cursor + 1];
+            process_argc += 1;
+        }
+    }
+
+    *process_argv_ptr = process_argv;
+    *process_argc_ptr = process_argc;
+}
+
+int pgetppid(int pid) {
+    int ppid;
+    char buf[2 * BUFSIZ];
+    char procname[128];  // Holds /proc/4294967296/status\0
+    FILE *fp;
+    int MAXBUF = 2 * BUFSIZ;
+
+    snprintf(procname, sizeof(procname), "/proc/%u/status", pid);
+    fp = fopen(procname, "r");
+    if (fp != NULL) {
+        size_t ret = fread(buf, sizeof(char), MAXBUF-1, fp);
+        if (!ret) {
+            return 0;
+        } else {
+            buf[ret++] = '\0';  // Terminate it.
+        }
+    }
+    fclose(fp);
+    char *ppid_loc = strstr(buf, "\nPPid:");
+    if (ppid_loc) {
+        sscanf(ppid_loc, "\nPPid:%d", &ppid);
+        if (!ppid || ppid == EOF) {
+            return 0;
+        }
+        return ppid;
+    } else {
+        return 0;
+    }
+}
+
+bool str_ends_with(const char *str, const char *suffix){
+    if (!str || !suffix)
+        return false;
+    size_t lenstr = strlen(str);
+    size_t lensuffix = strlen(suffix);
+    if (lensuffix >  lenstr)
+        return false;
+    return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
+}
+
+void process_info(){
+    char *gcc_archive_path = getenv("GCC_ARCHIVE");
+    char *command = (char *)xmalloc(65535);
+    snprintf(command, 65535, "mkdir -p %s/%s", gcc_archive_path, runtime_uuid);
+    system(command);
+    free(command);
+    char save_path[65535];
+    snprintf(save_path, 65535, "%s/%s/process_info", gcc_archive_path, runtime_uuid);
+    FILE *save_file = fopen(save_path, "w");
+    pid_t pid = getpid();
+    while (pid != 1 && pid != 0){
+        char **process_argv;
+        int process_argc;
+        get_pid_argv(pid, &process_argv, &process_argc);
+        fprintf(save_file, "[%d] #%d | ", pid, process_argc);
+        int __i = 0;
+        while(__i < process_argc){
+            fprintf(save_file, " %s |", process_argv[__i]);
+            __i++;
+        }
+        fprintf(save_file, "\n-------------------------------\n");
+        pid = pgetppid(pid);
+        free(process_argv[0]);
+    }
+    fclose(save_file);
+}
+
+bool need_skip() {
+    pid_t p_pid = getppid();
+    if (p_pid == 1 || p_pid == 0) {
+        return false;
+    }
+    char **process_argv;
+    int process_argc;
+    get_pid_argv(p_pid, &process_argv, &process_argc);
+    for (int __idx = 0 ; __idx < 2 && __idx < process_argc; __idx ++) {
+        if (str_ends_with(process_argv[__idx], "cmake") || str_ends_with(process_argv[__idx], "configure")) {
+            return true;
+        }
+    }
+    if (process_argc > 0) {
+        free(process_argv[0]);
+    }
+
+    pid_t gp_pid = pgetppid(p_pid);
+    if (gp_pid == 1 || gp_pid == 0) {
+        return false;
+    }
+    get_pid_argv(gp_pid, &process_argv, &process_argc);
+    for (int __idx = 0 ; __idx < 2 && __idx < process_argc; __idx ++) {
+        if (str_ends_with(process_argv[__idx], "cmake") || str_ends_with(process_argv[__idx], "configure")) {
+            return true;
+        }
+    }
+    if (process_argc > 0) {
+        free(process_argv[0]);
+    }
+    return false;
+}
+
 void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_option **decoded_options_ref, int argc, char **argv){
+    // srand initialization
+    srand(time(NULL));
+    
     // Generate UUID
     uuid4_init();
     uuid4_generate(runtime_uuid);
 
-    // srand initialization
-    srand(time(NULL));
+    // set GCC_RUNTIME_UUID so that ld_hook will detect it and work.
+    setenv("GCC_RUNTIME_UUID", runtime_uuid, 1);
+
+    arg_hook_skip = need_skip();
+    if (arg_hook_skip){
+        return;
+    }
+    // detect process related info
+    if (getenv("GCC_ARCHIVE")){
+        process_info();
+    }
 
     // debug
     if(getenv("GCC_PARSER_DEBUG")){
@@ -461,6 +617,10 @@ void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_op
 }
 
 void arg_hook_end(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options){
+    if (arg_hook_skip){
+        return;
+    }
+
     if(getenv("GCC_ARCHIVE")){
         archive_gcc(decoded_options_count, decoded_options);
     }
