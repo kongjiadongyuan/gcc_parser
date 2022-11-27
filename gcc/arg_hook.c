@@ -575,6 +575,11 @@ bool need_skip() {
 }
 
 void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_option **decoded_options_ref, int argc, char **argv){
+    // Check if need skip
+    arg_hook_skip = need_skip();
+    if (arg_hook_skip){
+        return;
+    }
     // srand initialization
     srand(time(NULL));
     
@@ -585,10 +590,6 @@ void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_op
     // set GCC_RUNTIME_UUID so that ld_hook will detect it and work.
     setenv("GCC_RUNTIME_UUID", runtime_uuid, 1);
 
-    arg_hook_skip = need_skip();
-    if (arg_hook_skip){
-        return;
-    }
     // detect process related info
     if (getenv("GCC_ARCHIVE")){
         process_info();
