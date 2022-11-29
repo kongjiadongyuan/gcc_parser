@@ -578,6 +578,8 @@ void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_op
     // Check if need skip
     arg_hook_skip = need_skip();
     if (arg_hook_skip){
+        // Tell ld to skip this hook
+        setenv("DO_NOT_TRACE", "1", 1);
         return;
     }
     // srand initialization
