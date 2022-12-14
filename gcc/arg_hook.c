@@ -60,14 +60,15 @@ bool arg_hook_failed = false;
 
 bool arg_hook_skip = false;
 
-int arg_hook_sqlite_busy_handler(void *data, int n_retries){
+int arg_hook_sqlite_busy_handler(void *data, int n_retries)
+{
     int sleep = (rand() % 10) * 1000;
     usleep(sleep);
     return 1;
 }
 
-
-void print_cl_decoded_option(struct cl_decoded_option *opt){
+void print_cl_decoded_option(struct cl_decoded_option *opt)
+{
     fprintf(stderr, "{\n");
     fprintf(stderr, "\topt->opt_index:                       %ld\n", opt->opt_index);
     fprintf(stderr, "\topt->opt_index MACRO:                 %s\n", rev_opt_code[opt->opt_index]);
@@ -84,23 +85,28 @@ void print_cl_decoded_option(struct cl_decoded_option *opt){
     fprintf(stderr, "}\n");
 }
 
-void argv_dump(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options){
+void argv_dump(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options)
+{
     char res[0x1000];
     memset(res, 0, 0x1000);
-    for(unsigned int idx = 0; idx < decoded_options_count; idx ++){
+    for (unsigned int idx = 0; idx < decoded_options_count; idx++)
+    {
         strcat(res, decoded_options[idx].orig_option_with_args_text);
     }
     fprintf(stderr, "%s\n", res);
 }
 
-void observe_decoded_options(unsigned int count, struct cl_decoded_option *options){
-    for(unsigned int idx = 0; idx < count; idx ++){
+void observe_decoded_options(unsigned int count, struct cl_decoded_option *options)
+{
+    for (unsigned int idx = 0; idx < count; idx++)
+    {
         fprintf(stderr, "decoded_options[%d]: ", idx);
         print_cl_decoded_option(&options[idx]);
     }
 }
 
-char *decoded_option_serialize(struct cl_decoded_option *option){
+char *decoded_option_serialize(struct cl_decoded_option *option)
+{
     cJSON *json = NULL;
     json = cJSON_CreateObject();
     cJSON_AddNumberToObject(json, "opt_index", option->opt_index);
@@ -123,7 +129,8 @@ char *decoded_option_serialize(struct cl_decoded_option *option){
     return json_str;
 }
 
-int insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option, unsigned int _option_idx, char **sqlite_fail_msg){
+int insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option, unsigned int _option_idx, char **sqlite_fail_msg)
+{
     char *insert_cmd;
     int size = 0x200;
     insert_cmd = (char *)xmalloc(size);
@@ -132,7 +139,8 @@ int insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option, unsigne
 #ifdef ARG_HOOK_DEBUG
     std::cerr << serialized_option << std::endl;
 #endif
-    while(true){
+    while (true)
+    {
         int writed = snprintf(
             insert_cmd,
             size,
@@ -153,19 +161,20 @@ int insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option, unsigne
             output_resolved_path,
             arg_string,
             _option_idx,
-            serialized_option
-        );
-        if (writed >= size - 1){
+            serialized_option);
+        if (writed >= size - 1)
+        {
             size = size * 2;
             insert_cmd = (char *)xrealloc(insert_cmd, size);
             memset(insert_cmd, 0, size);
         }
-        else{
+        else
+        {
             free(serialized_option);
             break;
         }
     }
-    
+
 #ifdef ARG_HOOK_DEBUG
     std::cerr << insert_cmd << std::endl;
 #endif
@@ -174,7 +183,8 @@ int insert_decoded_option(sqlite3 *db, struct cl_decoded_option *option, unsigne
     return rc;
 }
 
-void insert_decoded_options(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options, int argc, char **argv){
+void insert_decoded_options(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options, int argc, char **argv)
+{
     sqlite3 *db;
     char *sqlite_fail_msg;
 
@@ -188,14 +198,17 @@ void insert_decoded_options(unsigned int decoded_options_count, struct cl_decode
     proj_root = getenv("PROJ_ROOT");
 
     // Find realpath of the output file.
-    for(unsigned int _option_idx = 0; _option_idx < decoded_options_count; _option_idx ++){
-        if(decoded_options[_option_idx].opt_index == OPT_o){
+    for (unsigned int _option_idx = 0; _option_idx < decoded_options_count; _option_idx++)
+    {
+        if (decoded_options[_option_idx].opt_index == OPT_o)
+        {
             realpath(decoded_options[_option_idx].canonical_option[1], output_resolved_path);
             OPT_o_found = true;
             break;
         }
     }
-    if(OPT_o_found){
+    if (OPT_o_found)
+    {
 #ifdef ARG_HOOK_DEBUG
         std::cerr << "output_resolved_path: " << output_resolved_path << std::endl;
 #endif
@@ -221,13 +234,15 @@ void insert_decoded_options(unsigned int decoded_options_count, struct cl_decode
     uint64_t arg_string_length = 0x400;
     arg_string = (char *)xmalloc(arg_string_length);
     memset(arg_string, 0, arg_string_length);
-    for(int _arg_idx; _arg_idx < argc; _arg_idx++){
-        if(strlen(arg_string) + strlen(argv[_arg_idx]) + 0x100 >= arg_string_length){
+    for (int _arg_idx; _arg_idx < argc; _arg_idx++)
+    {
+        if (strlen(arg_string) + strlen(argv[_arg_idx]) + 0x100 >= arg_string_length)
+        {
             arg_string_length = (strlen(arg_string) + strlen(argv[_arg_idx]) + 0x100) * 2;
             arg_string = (char *)xrealloc(arg_string, arg_string_length);
         }
         strcat(arg_string, argv[_arg_idx]);
-        if(_arg_idx < argc - 1)
+        if (_arg_idx < argc - 1)
             strcat(arg_string, " ");
     }
 #ifdef ARG_HOOK_DEBUG
@@ -238,7 +253,8 @@ void insert_decoded_options(unsigned int decoded_options_count, struct cl_decode
 
     // Get Database Path and Open
     char *dbpath = getenv("COMPILE_COMMANDS_DB");
-    if(!dbpath){
+    if (!dbpath)
+    {
 #ifdef ARG_HOOK_DEBUG
         std::cerr << "COMPILE_COMMANDS_DB env not set" << std::endl;
 #endif
@@ -246,7 +262,8 @@ void insert_decoded_options(unsigned int decoded_options_count, struct cl_decode
         return;
     }
     int rc = sqlite3_open(dbpath, &db);
-    if (rc != SQLITE_OK) {
+    if (rc != SQLITE_OK)
+    {
         goto SQLITE_OP_FAIL;
     }
 
@@ -254,20 +271,24 @@ void insert_decoded_options(unsigned int decoded_options_count, struct cl_decode
 
     // Create table
     rc = sqlite3_exec(db, CREATE_TABLE, NULL, NULL, &sqlite_fail_msg);
-    if(rc != SQLITE_OK) {
+    if (rc != SQLITE_OK)
+    {
         goto SQLITE_OP_FAIL;
     }
 
     // begin transaction
     rc = sqlite3_exec(db, "begin;", NULL, NULL, &sqlite_fail_msg);
-    if(rc != SQLITE_OK) {
+    if (rc != SQLITE_OK)
+    {
         goto SQLITE_OP_FAIL;
     }
 
     // insert each row
-    for(unsigned int _option_idx = 0; _option_idx < decoded_options_count; _option_idx ++){
+    for (unsigned int _option_idx = 0; _option_idx < decoded_options_count; _option_idx++)
+    {
         rc = insert_decoded_option(db, &decoded_options[_option_idx], _option_idx, &sqlite_fail_msg);
-        if (rc != SQLITE_OK) {
+        if (rc != SQLITE_OK)
+        {
             sqlite3_exec(db, "rollback;", NULL, NULL, NULL);
             goto SQLITE_OP_FAIL;
         }
@@ -291,20 +312,23 @@ bool starts_with(const char *str, const char *prefix)
 {
     if (!str || !prefix)
         return 0;
-   if(strncmp(str, prefix, strlen(prefix)) == 0)
+    if (strncmp(str, prefix, strlen(prefix)) == 0)
         return 1;
-   return 0;
+    return 0;
 }
 
-void hijack_debug_options(unsigned int *decoded_options_count_ref, struct cl_decoded_option **decoded_options_ref){
+void hijack_debug_options(unsigned int *decoded_options_count_ref, struct cl_decoded_option **decoded_options_ref)
+{
     // change debug options to -gdwarf-4
     unsigned int target_vector_count = 0;
     struct cl_decoded_option *target_vector = XNEWVEC(struct cl_decoded_option, *decoded_options_count_ref + 1);
     struct cl_decoded_option *decoded_options = *decoded_options_ref;
 
     // filter other debug options
-    for (unsigned int _option_index=0; _option_index < *decoded_options_count_ref; _option_index ++){
-        if (starts_with(rev_opt_code[decoded_options[_option_index].opt_index], "OPT_g")){
+    for (unsigned int _option_index = 0; _option_index < *decoded_options_count_ref; _option_index++)
+    {
+        if (starts_with(rev_opt_code[decoded_options[_option_index].opt_index], "OPT_g"))
+        {
             continue;
         }
         memcpy(&target_vector[target_vector_count], &decoded_options[_option_index], sizeof(struct cl_decoded_option));
@@ -358,19 +382,23 @@ void hijack_optimization(unsigned int *decoded_options_count_ref, struct cl_deco
             memcpy(&target_vector[target_vector_count], &decoded_options[_option_index], sizeof(struct cl_decoded_option));
             target_vector_count += 1;
         }
-        if (!strcmp(target_opt_level, "fast")){
+        if (!strcmp(target_opt_level, "fast"))
+        {
             target_vector[target_vector_count].opt_index = OPT_Ofast;
             target_vector[target_vector_count].arg = NULL;
         }
-        else if(!strcmp(target_opt_level, "s")){
+        else if (!strcmp(target_opt_level, "s"))
+        {
             target_vector[target_vector_count].opt_index = OPT_Os;
             target_vector[target_vector_count].arg = NULL;
         }
-        else if(!strcmp(target_opt_level, "g")){
+        else if (!strcmp(target_opt_level, "g"))
+        {
             target_vector[target_vector_count].opt_index = OPT_Og;
             target_vector[target_vector_count].arg = NULL;
         }
-        else{
+        else
+        {
             target_vector[target_vector_count].opt_index = OPT_O;
             target_vector[target_vector_count].arg = target_opt_level;
         }
@@ -393,18 +421,20 @@ void hijack_optimization(unsigned int *decoded_options_count_ref, struct cl_deco
         *decoded_options_count_ref = target_vector_count;
         *decoded_options_ref = target_vector;
     }
-    else{
+    else
+    {
         // do nothing
         return;
     }
 }
 
-void archive_gcc(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options){
+void archive_gcc(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options)
+{
     char **input_files = XNEWVEC(char *, decoded_options_count);
     unsigned int input_files_count = 0;
     char **output_files = XNEWVEC(char *, decoded_options_count);
     unsigned int output_files_count = 0;
-    
+
     char *gcc_archive_path = getenv("GCC_ARCHIVE");
     char *command = (char *)xmalloc(65535);
     snprintf(command, 65535, "mkdir -p %s/%s", gcc_archive_path, runtime_uuid);
@@ -416,14 +446,17 @@ void archive_gcc(unsigned int decoded_options_count, struct cl_decoded_option *d
     free(command);
 
     // save input files and output files
-    for (unsigned int _option_index = 0; _option_index < decoded_options_count; _option_index ++){
-        if (decoded_options[_option_index].opt_index == OPT_SPECIAL_input_file){
+    for (unsigned int _option_index = 0; _option_index < decoded_options_count; _option_index++)
+    {
+        if (decoded_options[_option_index].opt_index == OPT_SPECIAL_input_file)
+        {
             char *command = (char *)xmalloc(65535);
             snprintf(command, 65535, "cp %s %s/%s/input", decoded_options[_option_index].arg, gcc_archive_path, runtime_uuid);
             system(command);
             free(command);
         }
-        if (decoded_options[_option_index].opt_index == OPT_o){
+        if (decoded_options[_option_index].opt_index == OPT_o)
+        {
             char *command = (char *)xmalloc(65535);
             snprintf(command, 65535, "cp %s %s/%s/output", decoded_options[_option_index].canonical_option[1], gcc_archive_path, runtime_uuid);
             system(command);
@@ -432,9 +465,8 @@ void archive_gcc(unsigned int decoded_options_count, struct cl_decoded_option *d
     }
 }
 
-
-
-void get_pid_argv(pid_t pid, char ***process_argv_ptr, int *process_argc_ptr){
+void get_pid_argv(pid_t pid, char ***process_argv_ptr, int *process_argc_ptr)
+{
     char *cmdline_path = (char *)xmalloc(65535);
     snprintf(cmdline_path, 65535, "/proc/%d/cmdline", pid);
     FILE *cmdline_file = fopen(cmdline_path, "r");
@@ -442,13 +474,16 @@ void get_pid_argv(pid_t pid, char ***process_argv_ptr, int *process_argc_ptr){
     int cell_count = 1;
     char *arg_str = (char *)xmalloc(cell_count * cell_size);
     size_t read_len = 0;
-    while (true) {
+    while (true)
+    {
         int read_count = fread(arg_str + read_len, 1, cell_size, cmdline_file);
         read_len += read_count;
-        if (read_count < cell_size) {
+        if (read_count < cell_size)
+        {
             break;
         }
-        else {
+        else
+        {
             cell_count += 1;
             arg_str = (char *)xrealloc(arg_str, cell_count * cell_size);
         }
@@ -459,12 +494,15 @@ void get_pid_argv(pid_t pid, char ***process_argv_ptr, int *process_argc_ptr){
     char **process_argv = XNEWVEC(char *, 65535);
     int process_argc = 0;
 
-    for (int __cursor = 0; __cursor < read_len - 1; __cursor ++){
-        if (__cursor == 0){
+    for (int __cursor = 0; __cursor < read_len - 1; __cursor++)
+    {
+        if (__cursor == 0)
+        {
             process_argv[process_argc] = &arg_str[__cursor];
             process_argc += 1;
         }
-        else if (arg_str[__cursor] == '\0'){
+        else if (arg_str[__cursor] == '\0')
+        {
             process_argv[process_argc] = &arg_str[__cursor + 1];
             process_argc += 1;
         }
@@ -474,47 +512,58 @@ void get_pid_argv(pid_t pid, char ***process_argv_ptr, int *process_argc_ptr){
     *process_argc_ptr = process_argc;
 }
 
-int pgetppid(int pid) {
+int pgetppid(int pid)
+{
     int ppid;
     char buf[2 * BUFSIZ];
-    char procname[128];  // Holds /proc/4294967296/status\0
+    char procname[128]; // Holds /proc/4294967296/status\0
     FILE *fp;
     int MAXBUF = 2 * BUFSIZ;
 
     snprintf(procname, sizeof(procname), "/proc/%u/status", pid);
     fp = fopen(procname, "r");
-    if (fp != NULL) {
-        size_t ret = fread(buf, sizeof(char), MAXBUF-1, fp);
-        if (!ret) {
+    if (fp != NULL)
+    {
+        size_t ret = fread(buf, sizeof(char), MAXBUF - 1, fp);
+        if (!ret)
+        {
             return 0;
-        } else {
-            buf[ret++] = '\0';  // Terminate it.
+        }
+        else
+        {
+            buf[ret++] = '\0'; // Terminate it.
         }
     }
     fclose(fp);
     char *ppid_loc = strstr(buf, "\nPPid:");
-    if (ppid_loc) {
+    if (ppid_loc)
+    {
         sscanf(ppid_loc, "\nPPid:%d", &ppid);
-        if (!ppid || ppid == EOF) {
+        if (!ppid || ppid == EOF)
+        {
             return 0;
         }
         return ppid;
-    } else {
+    }
+    else
+    {
         return 0;
     }
 }
 
-bool str_ends_with(const char *str, const char *suffix){
+bool str_ends_with(const char *str, const char *suffix)
+{
     if (!str || !suffix)
         return false;
     size_t lenstr = strlen(str);
     size_t lensuffix = strlen(suffix);
-    if (lensuffix >  lenstr)
+    if (lensuffix > lenstr)
         return false;
     return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
 }
 
-void process_info(){
+void process_info()
+{
     char *gcc_archive_path = getenv("GCC_ARCHIVE");
     char *command = (char *)xmalloc(65535);
     snprintf(command, 65535, "mkdir -p %s/%s", gcc_archive_path, runtime_uuid);
@@ -524,13 +573,15 @@ void process_info(){
     snprintf(save_path, 65535, "%s/%s/process_info", gcc_archive_path, runtime_uuid);
     FILE *save_file = fopen(save_path, "w");
     pid_t pid = getpid();
-    while (pid != 1 && pid != 0){
+    while (pid != 1 && pid != 0)
+    {
         char **process_argv;
         int process_argc;
         get_pid_argv(pid, &process_argv, &process_argc);
         fprintf(save_file, "[%d] #%d | ", pid, process_argc);
         int __i = 0;
-        while(__i < process_argc){
+        while (__i < process_argc)
+        {
             fprintf(save_file, " %s |", process_argv[__i]);
             __i++;
         }
@@ -541,50 +592,65 @@ void process_info(){
     fclose(save_file);
 }
 
-bool need_skip() {
+bool need_skip()
+{
     pid_t p_pid = getppid();
-    if (p_pid == 1 || p_pid == 0) {
+    if (p_pid == 1 || p_pid == 0)
+    {
         return false;
     }
     char **process_argv;
     int process_argc;
     get_pid_argv(p_pid, &process_argv, &process_argc);
-    for (int __idx = 0 ; __idx < 2 && __idx < process_argc; __idx ++) {
-        if (str_ends_with(process_argv[__idx], "cmake") || str_ends_with(process_argv[__idx], "configure")) {
+    for (int __idx = 0; __idx < 2 && __idx < process_argc; __idx++)
+    {
+        if (str_ends_with(process_argv[__idx], "cmake") || str_ends_with(process_argv[__idx], "configure"))
+        {
             return true;
         }
     }
-    if (process_argc > 0) {
+    if (process_argc > 0)
+    {
         free(process_argv[0]);
     }
 
     pid_t gp_pid = pgetppid(p_pid);
-    if (gp_pid == 1 || gp_pid == 0) {
+    if (gp_pid == 1 || gp_pid == 0)
+    {
         return false;
     }
     get_pid_argv(gp_pid, &process_argv, &process_argc);
-    for (int __idx = 0 ; __idx < 2 && __idx < process_argc; __idx ++) {
-        if (str_ends_with(process_argv[__idx], "cmake") || str_ends_with(process_argv[__idx], "configure")) {
+    for (int __idx = 0; __idx < 2 && __idx < process_argc; __idx++)
+    {
+        if (str_ends_with(process_argv[__idx], "cmake") || str_ends_with(process_argv[__idx], "configure"))
+        {
             return true;
         }
     }
-    if (process_argc > 0) {
+    if (process_argc > 0)
+    {
         free(process_argv[0]);
     }
     return false;
 }
 
-void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_option **decoded_options_ref, int argc, char **argv){
+void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_option **decoded_options_ref, int argc, char **argv)
+{
     // Check if need skip
-    arg_hook_skip = need_skip();
-    if (arg_hook_skip){
-        // Tell ld to skip this hook
-        setenv("DO_NOT_TRACE", "1", 1);
-        return;
+    if (getenv("SKIP_TEST"))
+    {
+
+        arg_hook_skip = need_skip();
+        if (arg_hook_skip)
+        {
+            // Tell ld to skip this hook
+            setenv("DO_NOT_TRACE", "1", 1);
+            return;
+        }
     }
     // srand initialization
     srand(time(NULL));
-    
+
     // Generate UUID
     uuid4_init();
     uuid4_generate(runtime_uuid);
@@ -593,38 +659,46 @@ void arg_hook_main(unsigned int *decoded_options_count_ref, struct cl_decoded_op
     setenv("GCC_RUNTIME_UUID", runtime_uuid, 1);
 
     // detect process related info
-    if (getenv("GCC_ARCHIVE")){
+    if (getenv("GCC_ARCHIVE"))
+    {
         process_info();
     }
 
     // debug
-    if(getenv("GCC_PARSER_DEBUG")){
+    if (getenv("GCC_PARSER_DEBUG"))
+    {
         observe_decoded_options(*decoded_options_count_ref, *decoded_options_ref);
     }
 
     // hijack debug options
-    if(getenv("GCC_PARSER_HIJACK_DWARF4")){
+    if (getenv("GCC_PARSER_HIJACK_DWARF4"))
+    {
         hijack_debug_options(decoded_options_count_ref, decoded_options_ref);
     }
 
     // hijack optimization
-    if(getenv("GCC_PARSER_HIJACK_OPTIMIZATION")){
+    if (getenv("GCC_PARSER_HIJACK_OPTIMIZATION"))
+    {
         hijack_optimization(decoded_options_count_ref, decoded_options_ref);
     }
 
     // create database
-    if (getenv("COMPILE_COMMANDS_DB")){
+    if (getenv("COMPILE_COMMANDS_DB"))
+    {
         insert_decoded_options(*decoded_options_count_ref, *decoded_options_ref, argc, argv);
         return;
     }
 }
 
-void arg_hook_end(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options){
-    if (arg_hook_skip){
+void arg_hook_end(unsigned int decoded_options_count, struct cl_decoded_option *decoded_options)
+{
+    if (arg_hook_skip)
+    {
         return;
     }
 
-    if(getenv("GCC_ARCHIVE")){
+    if (getenv("GCC_ARCHIVE"))
+    {
         archive_gcc(decoded_options_count, decoded_options);
     }
 }
