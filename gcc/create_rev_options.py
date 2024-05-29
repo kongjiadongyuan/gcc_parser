@@ -1,50 +1,64 @@
-#!/usr/bin/env python3
-import CppHeaderParser
-import os
+import re
 import sys
 
-def parse_header(path):
-    optionHeader = CppHeaderParser.CppHeader(path)
-    opt_code_list = None
-    for enum in optionHeader.enums:
-        if enum['name'] == 'opt_code':
-            opt_code_list = enum['values']
-            break
-    if opt_code_list is None:
-        raise Exception("opt_code not found")
-    return opt_code_list
+def parse_header_with_regex(path):
+    try:
+        with open(path, 'r') as file:
+            content = file.read()
 
-def generate_rev_list(opt_code_list):
-    max_code = 0
-    for opt in opt_code_list:
-        if opt['value'] > max_code:
-            max_code = opt['value']
-    rev_list = ['' for _ in range(max_code + 1)]
-    for opt in opt_code_list:
-        rev_list[opt['value']] = opt['name']
-    return rev_list
+        # 使用正则表达式匹配枚举
+        enum_pattern = r'enum\s+opt_code\s*\{([^}]+)\}'
+        matches = re.search(enum_pattern, content, re.DOTALL)
+        if not matches:
+            raise Exception("opt_code enum not found")
+
+        # 分析枚举中的每个值
+        enum_content = matches.group(1)
+        item_pattern = r'(\w+)\s*=\s*(\d+),?'
+        items = re.findall(item_pattern, enum_content)
+        opt_code_list = sorted(items, key=lambda x: int(x[1]))
+
+        # 返回名称和对应的整数值
+        return [(name, int(value)) for name, value in opt_code_list]
+    except FileNotFoundError:
+        print("File not found.")
+        sys.exit(1)
 
 def generate_rev_header(opt_code_list, path):
-    res = ""
-    res += "#ifndef REV_OPTIONS_H\n"
-    res += "#define REV_OPTIONS_H\n"
-    res += "\n" * 2
-    res += "char const *rev_opt_code[] = {"
-    for idx, opt_name in enumerate(opt_code_list):
-        res += f"\"{opt_name}\""
-        if idx < len(opt_code_list) - 1:
-            res += ", "
-    res += "};"
-    res += "\n" * 2
-    res += "#endif\n"
-    with open(path, 'w') as f:
-        f.write(res)
+    header_content = [
+        "#ifndef REV_OPTIONS_H",
+        "#define REV_OPTIONS_H",
+        "",
+        "const char *rev_opt_code[] = {"
+    ]
 
+    # 生成数组元素
+    for name, value in opt_code_list:
+        if value == max(opt_code_list, key=lambda x: x[1])[1]:  # 检查是否为最后一个元素
+            header_content.append(f'    "{name}"')
+        else:
+            header_content.append(f'    "{name}",')
+
+    header_content.extend([
+        "};",
+        "",
+        "#endif"
+    ])
+
+    # 写入文件
+    with open(path, 'w') as file:
+        file.write('\n'.join(header_content))
 
 def main():
-    opt_code_list = parse_header(sys.argv[1])
-    rev_list = generate_rev_list(opt_code_list)
-    generate_rev_header(rev_list, sys.argv[2])
+    if len(sys.argv) < 3:
+        print("Usage: python script.py <input_header.h> <output_header.h>")
+        sys.exit(1)
+
+    input_path = sys.argv[1]
+    output_path = sys.argv[2]
+
+    opt_code_list = parse_header_with_regex(input_path)
+    generate_rev_header(opt_code_list, output_path)
 
 if __name__ == '__main__':
     main()
